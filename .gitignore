@@ -1,0 +1,8 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Roboframework Testresults
+result/
+__temp__/
+python/
+PortablePython.exe

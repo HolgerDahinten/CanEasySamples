@@ -1,0 +1,5 @@
+CanSig_Ignition = "//DB/Channel:Channel1/Node:ECU1/Msg:Message1/Sig:ECU1_Ignition"
+CanSig_EngineSpeed = "//DB/Channel:Channel1/Node:ECU1/Msg:Message1/Sig:ECU1_EngineSpeed"
+CanSig_Gear = "//DB/Channel:Channel1/Node:ECU1/Msg:Message1/Sig:ECU1_Gear"
+CanSig_VehicleSpeed = "//DB/Channel:Channel1/Node:ECU1/Msg:Message2/Sig:ECU2_VehicleSpeed"
+CanSig_EngineRunning = "//DB/Channel:Channel1/Node:ECU1/Msg:Message2/Sig:ECU2_EngineRunning"

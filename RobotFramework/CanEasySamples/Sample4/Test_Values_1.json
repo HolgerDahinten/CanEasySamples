@@ -1,0 +1,6 @@
+[
+ { "gear" : 1,  "rpm"  :  500,   "speed" :  25 },
+ { "gear" : 2,  "rpm"  :  100,   "speed" :  10 },
+ { "gear" : 3,  "rpm"  :  500,   "speed" :  75 },
+ { "gear" : 4,  "rpm"  : 4500,   "speed" : 900 }
+]
