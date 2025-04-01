@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Panel Type="Vector.CANalyzer.Panels.PanelSerializer, Vector.CANalyzer.Panels.Serializer, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null">
+  <Object Type="Vector.CANalyzer.Panels.Runtime.Panel, Vector.CANalyzer.Panels.Common, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Panel" ControlName="Panel">
+    <Object Type="Vector.CANalyzer.Panels.Design.TrackBarControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="X9fa02358e647de4c9cea10ee4a153db1a131" ControlName="Track Bar 1">
+      <Property Name="Name">X9fa02358e647de4c9cea10ee4a153db1a131</Property>
+      <Property Name="Size">106, 30</Property>
+      <Property Name="Location">138, 186</Property>
+      <Property Name="TabIndex">4</Property>
+      <Property Name="MaximumDouble">127</Property>
+      <Property Name="LargeChangeDouble">1</Property>
+      <Property Name="MaximumSize">100000, 30</Property>
+      <Property Name="Maximum">127</Property>
+      <Property Name="LargeChange">1</Property>
+      <Property Name="SymbolConfiguration">8;2;db;MyNode;MyMsg;MySig;1;CAN;;-1;;;Value;;;0</Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.StartStopControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xa29c3870e6367e4ffeebc0ee27182040a1d2" ControlName="Start Stop Control 1">
+      <Property Name="Name">Xa29c3870e6367e4ffeebc0ee27182040a1d2</Property>
+      <Property Name="Size">112, 56</Property>
+      <Property Name="Location">0, 0</Property>
+      <Property Name="TabIndex">3</Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.AnalogGaugeControl, Vector.CANalyzer.Panels.AnalogGauge, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="X7096ad7def047e4867e9efce087b7692b08f" ControlName="Analog Gauge 1">
+      <Property Name="Name">X7096ad7def047e4867e9efce087b7692b08f</Property>
+      <Property Name="Size">225, 180</Property>
+      <Property Name="Location">311, 30</Property>
+      <Property Name="ScaleMin">0</Property>
+      <Property Name="ScaleMax">127</Property>
+      <Property Name="LowerRangeLimit">30</Property>
+      <Property Name="UpperRangeLimit">80</Property>
+      <Property Name="BorderStyle">FixedSingle</Property>
+      <Property Name="BackgroundColor">White</Property>
+      <Property Name="LegendText"></Property>
+      <Property Name="LegendTextFont">Microsoft Sans Serif, 8.25pt</Property>
+      <Property Name="MainTicksNumber">6</Property>
+      <Property Name="CurrentPosition">0</Property>
+      <Property Name="IsFrame">False</Property>
+      <Property Name="IsMargin">False</Property>
+      <Property Name="ScaleMargin">0</Property>
+      <Property Name="SymbolConfiguration">8;2;db;MyNode;MyMsg;MySig;1;CAN;;-1;;;Value;;;0</Property>
+      <Property Name="CriticalProps" Member="AAEAAAD/////AQAAAAAAAAAEAQAAAC9TeXN0ZW0uUmVmbGVjdGlvbi5NZW1iZXJJbmZvU2VyaWFsaXphdGlvbkhvbGRlcgcAAAAETmFtZQxBc3NlbWJseU5hbWUJQ2xhc3NOYW1lCVNpZ25hdHVyZQpTaWduYXR1cmUyCk1lbWJlclR5cGUQR2VuZXJpY0FyZ3VtZW50cwEBAQEBAAMIDVN5c3RlbS5UeXBlW10GAgAAAAUuY3RvcgYDAAAAXFZlY3Rvci5DQU5hbHl6ZXIuUGFuZWxzLkFuYWxvZ0dhdWdlLCBWZXJzaW9uPTE3LjMuOTEuMCwgQ3VsdHVyZT1uZXV0cmFsLCBQdWJsaWNLZXlUb2tlbj1udWxsBgQAAAA2VmVjdG9yLkNBTmFseXplci5QYW5lbHMuRGVzaWduLkdhdWdlQ3JpdGljYWxQcm9wZXJ0aWVzBgUAAAAyVm9pZCAuY3RvcihEb3VibGUsIERvdWJsZSwgRG91YmxlLCBEb3VibGUsIERvdWJsZSkGBgAAAFAuY3RvcihTeXN0ZW0uRG91YmxlLCBTeXN0ZW0uRG91YmxlLCBTeXN0ZW0uRG91YmxlLCBTeXN0ZW0uRG91YmxlLCBTeXN0ZW0uRG91YmxlKQEAAAAKCw==">
+        <Argument>0</Argument>
+        <Argument>127</Argument>
+        <Argument>0</Argument>
+        <Argument>30</Argument>
+        <Argument>80</Argument>
+      </Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.NumericUpDownControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xefed856bedebde4d2bea060e1b568ae734fa" ControlName="Numeric Up/Down 1">
+      <Property Name="Name">Xefed856bedebde4d2bea060e1b568ae734fa</Property>
+      <Property Name="Size">50, 18</Property>
+      <Property Name="Location">138, 162</Property>
+      <Property Name="DecimalPlaces">1</Property>
+      <Property Name="Maximum">127</Property>
+      <Property Name="TabIndex">2</Property>
+      <Property Name="SymbolConfiguration">8;2;db;MyNode;MyMsg;MySig;1;CAN;;-1;;;Value;;;0</Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.TextBoxControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="X9d99c046ee25de48aeeb28cef0c90141913d" ControlName="Input/Output Box 1">
+      <Property Name="Name">X9d99c046ee25de48aeeb28cef0c90141913d</Property>
+      <Property Name="Size">138, 21</Property>
+      <Property Name="Location">100, 128</Property>
+      <Property Name="AlarmGeneralSettings">1;0;0;100</Property>
+      <Property Name="AlarmLowerBkgColor">Salmon</Property>
+      <Property Name="AlarmLowerTextColor">Black</Property>
+      <Property Name="AlarmUpperBkgColor">IndianRed</Property>
+      <Property Name="AlarmUpperTextColor">Black</Property>
+      <Property Name="BoxBorderStyle">FixedSingle</Property>
+      <Property Name="DisplayLabel">Left</Property>
+      <Property Name="TabIndex">1</Property>
+      <Property Name="DescriptionText">MySig:</Property>
+      <Property Name="ValueDecimalPlaces">1</Property>
+      <Property Name="ValueDisplay">Double</Property>
+      <Property Name="UsedValueTable">RawValue</Property>
+      <Property Name="DescriptionSize">39, 21</Property>
+      <Property Name="SymbolConfiguration">8;2;db;MyNode;MyMsg;MySig;1;CAN;;-1;;;Value;;;0</Property>
+    </Object>
+    <Object Type="Vector.CANalyzer.Panels.Design.LCDControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xdfce8998e720be43e1e84b2e741daddcb066" ControlName="LCD Control 1">
+      <Property Name="Name">Xdfce8998e720be43e1e84b2e741daddcb066</Property>
+      <Property Name="Size">164, 50</Property>
+      <Property Name="Location">102, 59</Property>
+      <Property Name="SymbolConfiguration">8;2;db;MyNode;MyMsg;MySig;1;CAN;;-1;;;Value;;;0</Property>
+    </Object>
+    <Property Name="Name">Panel</Property>
+    <Property Name="Size">580, 240</Property>
+    <Property Name="Location">0, 0</Property>
+    <Property Name="BackColor">255, 255, 255, 255</Property>
+  </Object>
+</Panel>

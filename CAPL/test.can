@@ -1,0 +1,1432 @@
+/*@!Encoding:1252*/
+includes
+{
+  
+}
+
+variables
+{
+  const AUTO_TEST = 1;
+  message MyMsg myMsg;
+  byte boResponseEvent = 0;
+  mstimer timerIncrementMyVarInt;
+  mstimer timerIncrementMySysVar;
+  msTimer timerSendMsg;
+  msTimer timerSetJoinedText;
+  mstimer myTimers[10];
+  byte myTimerCalled[10];
+  byte boOnMessageCalled = 0;
+  long getValueSignal = 0;
+  qword getRawValueSignal = 0;
+  byte MyVarChangeCount = 0;
+  char ChangedVarName[100];
+  
+   struct Point {   // note: default _align(8)
+   byte x;          // offset 0, size 1
+   byte y;          // alignment 1, offset 1, size 1, padding before: 0
+   };               // size 2, alignment (of the struct) 1
+
+   struct LongPoint {   // note: default _align(8)
+   byte x;              // offset 0, size 1
+   qword y;             // alignment 8, offset 8, size 8, padding before: 7
+   };                   // size 16, alignment (of the struct) 8
+
+   _align(2) struct Point2 {
+   byte x;    // offset 0, size 1, (alignment 1)
+   qword y;   // alignment 2, offset 2, size 8, padding before: 1
+   };         // size 10, alignment (of the struct) 2
+
+   struct Points {   // note: _align(8) per default
+   struct Point p1;  // offset 0, size 2, (alignment 1)
+   byte x;           // alignment 1, offset 2, size 1, padding before: 0
+   struct Point2 p2; // alignment 2, offset 4, size 10, padding before: 1
+   };                // size 14, alignment (of the struct) 2
+   
+   _align(1) struct Points2 {
+   struct Point p1;  // offset 0, size 2, (alignment 1)
+   byte x;           // alignment 1, offset 2, size 1, padding before: 0
+   struct Point2 p2; // alignment 1, offset 3, size 10, padding before: 0  
+   };         // size 13, alignment (of the struct) 1
+   
+   struct Test1
+   {
+      qword p1;    // offset 0, size 8
+      char p2[5];  // offset 8, size 5
+   };              // size 13, alignment 8
+  
+   struct Test2
+   {
+      qword p1;    // offset 0, size 8
+      char p2[5];  // offset 8, size 5
+      long p3;     // offset 16, size 5, padding before 3
+   };              // size 20, alignment (of the struct) 8
+   
+   
+    struct StructInitTest
+	{
+		char sName[20];
+		byte bVal;
+		long lVal;
+	};
+    const byte MAX_ENTRIES = 2;  
+    struct StructInitTest structInitTest[MAX_ENTRIES] =
+	{
+		{sName = "First name",   bVal = 0x00,  lVal = 0x123456},
+		{sName = "Last name",    bVal = 0x01,  lVal = 0xabcdef}           
+	};
+}
+
+long CheckValueFloat(char msg[], float value, float compare)
+{ 
+  if(value == compare)
+  {
+    testStepPass("CheckResult", "%s - Correct result: %f", msg, value);
+    return 1;
+  }
+  
+  testStepFail("CheckResult", "%s: Unexpected value (%f != %f)", msg, value, compare);  
+  return 0;
+}
+
+long CheckValueDouble(char msg[], double value, double compare)
+{ 
+  if(value == compare)
+  {
+    testStepPass("CheckResult", "%s - Correct result: %f", msg, value);
+    return 1;
+  }
+  
+  testStepFail("CheckResult", "%s: Unexpected value (%f != %f)", msg, value, compare);  
+  return 0;
+}
+
+long CheckValueHex(char msg[], int64 value, int64 compare)
+{ 
+  if(value == compare)
+  {
+    testStepPass("CheckResult", "%s - Correct result: 0x%I64x", msg, value);
+    return 1;
+  }
+  
+  testStepFail("CheckResult", "%s: Unexpected value (0x%I64x != 0x%I64x)", msg, value, compare);  
+  return 0;
+}
+
+long CheckValue(char msg[], int64 value, int64 compare)
+{
+  if(value == compare)
+  {
+    testStepPass("CheckResult", "%s - Correct result: %I64d", msg, value);
+    return 1;
+  }
+  
+  testStepFail("CheckResult", "%s: Unexpected value (%I64d != %I64d)", msg, value, compare);  
+  return 0;
+}
+
+long CheckValueString(char msg[], char value[], char compare[])
+{
+  long valueLength;
+  long compareLength;
+  valueLength = strlen(value);
+  compareLength = strlen(compare);
+  
+  if(valueLength == compareLength)
+  {
+    if(strncmp(value, compare, valueLength) == 0)    
+    {    
+        testStepPass("CheckResult", "%s - String equal: %s", msg, value);
+        return 1;
+    }
+    
+    testStepFail("CheckResult", "%s: String not equal (%s != %s)", msg, value, compare);  
+    
+    return 0;
+  }
+  
+  testStepFail("CheckResult", "%s: String length not equal (%d != %d) (%s != %s)", msg, valueLength, compareLength, value, compare);  
+   
+  return 0;
+}
+
+void PrintBuffer(char text[], byte buffer[], long size)
+{
+  long i;
+  write("%s: [%d]", text);
+  for(i=0; i < size; ++i)
+    write("  Byte[%02d] = 0x%02x", i, buffer[i]);  
+}
+
+/*
+on diagResponse IC213.Displaytest_Start  
+{
+  boResponseEvent = 1;
+}
+
+testcase MyDiagTest()
+{  
+  long ret;
+  byte routineIDBuffer[2];
+  int nBild;
+  
+  write("MyDiagTest started");
+  
+  // Set target ECU config.
+  ret = DiagSetTarget("IC213");  
+  CheckValue("DiagSetTarget", ret, 0);
+  
+  // Set param to show green screen.
+  ret = diagSetParameter(myDiagRequest, "Testbildnummer", 3); //green
+  CheckValue("diagSetParameter", ret, 0);
+ 
+  // Check that param was set correct.
+  ret = diagGetParameter(myDiagRequest, "Testbildnummer");
+  CheckValue("diagGetParameter", ret, 3);
+  
+  // Send request to show green screen in invalid (default) session
+  ret = diagSendRequest(myDiagRequest);
+  CheckValue("diagSendRequest", ret, 0);
+  
+  // Wait for response of this request.
+  ret = testWaitForDiagResponse(myDiagRequest, 1000);
+  CheckValue("testWaitForDiagResponse", ret, 1);
+  
+  // Check for error code
+  ret = diagGetLastResponseCode(myDiagRequest);
+  CheckValue("diagGetLastResponseCode myDiagRequest", ret, 127); // not supported in active session  
+  
+  // Switch to extended session
+  ret = diagSendRequest(mySessionExt);
+  CheckValue("diagSendRequest mySessionExt", ret, 0);
+    
+  // Send request to show green screen.
+  boResponseEvent = 0;
+  ret = diagSendRequest(myDiagRequest);
+  CheckValue("diagSendRequest", ret, 0);
+  
+  // Wait for response.
+  ret = testWaitForDiagResponse(myDiagRequest, 1000);
+  CheckValue("testWaitForDiagResponse", ret, 1);
+  
+  // Check flag that event was processed.
+  CheckValue("boResponseEvent", boResponseEvent, 1);
+      
+  // Get payload from last response.
+  ret = diagGetLastResponse(myDiagResponse);  
+  CheckValue("diagGetLastResponse", ret, 0);
+  
+  // Check for correct value of param 
+  ret = diagGetParameter(myDiagResponse, "RoutineIdentifier");
+  CheckValue("diagGetParameter", ret, 0x303);
+  
+  // Check raw parameter value
+  ret = diagGetParameterRaw(myDiagRequest, "RoutineIdentifier", routineIDBuffer, elCount(routineIDBuffer));
+  CheckValue("diagGetParameterRaw", ret, 0);
+  CheckValue("routineIDBuffer[0]", routineIDBuffer[0], 0x3);
+  CheckValue("routineIDBuffer[1]", routineIDBuffer[1], 0x3);
+  
+  // Check for valid response code
+  ret = diagGetLastResponseCode(myDiagRequest);
+  CheckValue("diagGetLastResponseCode myDiagRequest", ret, 0);
+  ret = diagGetResponseCode(myDiagResponse);
+  CheckValue("diagGetResponseCode myDiagResponse", ret, 0);
+  
+  // Run different test screens.
+  for(nBild = 0; nBild < 36; nBild++)
+  {
+	  TestWaitForTimeout(1000);
+    diagSetParameter(myDiagRequest, "Testbildnummer", nBild); //green
+    diagSendRequest(myDiagRequest);
+  }  
+}*/
+
+on timer timerSendMsg
+{
+  output(myMsg);
+}
+
+on timer timerIncrementMyVarInt
+{
+  putValue(MyVarInt, getValue(MyVarInt) + 1);
+}
+
+on timer timerIncrementMySysVar
+{
+  @sysvar::MyTest::MySysVarInt = @sysvar::MyTest::MySysVarInt + 1;
+}
+
+on timer timerSetJoinedText
+{
+  TestSupplyTextEvent("TestJoin");
+}
+
+testcase MyTestWait()
+{
+  TestStep("Wait test", "Wait a second begin");
+  testWaitForTimeout(1000);
+  TestStep("Wait test", "Wait a second end");
+    
+  TestStep("Wait test", "Wait a 5 ms begin");
+  testWaitForTimeout(5);
+  TestStep("Wait test", "Wait a 5 ms end");
+  testStepPass("Wait", "Check time in report");  
+}
+
+testfunction MyTestConfirmFunc()
+{
+  long result;
+  result = TestWaitForTesterConfirmation("Warte auf timeout", 4000);
+  CheckValue("Warte auf timeout", result, 0);
+
+  if(AUTO_TEST)
+    return; // Other tests are interactive  
+  
+  result = TestWaitForTesterConfirmation("Dr�cke 'Yes'");
+  CheckValue("Dr�cke 'Yes'", result, 1);
+  
+  result = TestWaitForTesterConfirmation("Dr�cke 'No'");
+  CheckValue("Dr�cke 'No'", result, 2);
+
+  result = TestWaitForTesterConfirmation("Dr�cke 'Yes' timeout 0", 0);
+  CheckValue("Dr�cke 'Yes' timeout 0", result, 1);
+
+  result = TestWaitForTesterConfirmation("Dr�cke 'Yes' in 8s", 8000);
+  CheckValue("Dr�cke 'Yes' in 4s", result, 1);
+
+  result = TestWaitForTesterConfirmation("Check test.bmp", 0, "Heading", "Test.bmp", "resourceCaption");
+  CheckValue("Check test.bmp", result, 1);
+
+  result = TestWaitForTesterConfirmation("Check test2.png", 0, "Heading", "Test2.png", "resourceCaption");
+  CheckValue("Check test2.png", result, 1);
+}
+
+testcase MyTestConfirm()
+{
+  MyTestConfirmFunc();
+}
+
+/// FaildTest
+testcase MyTestMissingPass()
+{
+  TestStep("Missing pass", "test case should pass");
+}
+
+/// FaildTest
+testcase MyTestFailed()
+{
+  testStepBegin("MyTestFailed", "My comment");
+  testStepFail(" � failed");
+  testStepPass(" � pass (MyTestFailed should not pass)");
+}
+
+testcase MyTestTestSteps()
+{  
+  // form1
+  testStep(0, "Form1", "desc: %s", "form1 level 0");
+  testStep(1, "Form1", "desc: %s", "form1 level 1");
+  
+  // form2: not supported right now
+  // testStep(0, "Form2", handle); 
+  
+  // form3
+  testStep("Form3", "desc: %s", "form3");
+  
+  // form4
+  testStepPass(0, "Form4", "desc: %s", "form4 level 0");
+  testStepPass(1, "Form4", "desc: %s", "form4 level 1");
+
+  // form5: not supported right now
+  // testStepPass("Form5, "desc: %s", handle);
+  
+  // form6
+  testStepPass("Form6", "desc: %s", "form6");
+  
+  // form7
+  testStepPass("desc: form7");
+  
+  // form8
+  testStepPass();
+  
+  if(AUTO_TEST)
+    return; // Skip fail test on autotest
+  
+  // form9
+  testStepFail(0, "Form9", "desc: %s", "form9 level 0");
+  testStepFail(1, "Form9", "desc: %s", "form9 level 1");  
+
+  // form10: not supported right now
+  // testStepFail("Form10, "desc: %s", handle);
+
+  // form11
+  testStepFail("Form11", "desc: %s", "form11");
+  
+  // form12
+  testStepFail("Form12");
+
+  // form13
+  testStepFail();
+    
+  // form14
+  testStepWarning(0, "Form14", "desc: %s", "form14 level 0");
+  testStepWarning(1, "Form14", "desc: %s", "form14 level 1");  
+
+  // form15: not supported right now
+  // testStepWarning("Form15, "desc: %s", handle);
+
+  // form16
+  testStepWarning("Form16", "desc: %s", "form16");
+  
+  // form17
+  testStepWarning("Form17");
+
+  // form18
+  testStepWarning();
+}
+
+void CheckValues(long expectedRe)
+{
+  long result;
+  result = testWaitForSignalMatch(MyMsg::MySig, 1.5, 1000);
+  if(expectedRe == 0) // setSignal is just working when a IL is defined for the node.
+    CheckValue("MyMsg::MySig timeout", result, expectedRe);
+  
+  // Compiler error in CANoe 9 using sys var
+  //result = testWaitForSignalMatch(MyTest::MySysVarInt, 12, 1000);
+  
+  result = testWaitForSignalMatch(MyVarFloat, 1.23, 1000);
+  CheckValue("MyVarFloat timeout", result, expectedRe);
+  
+  result = testWaitForSignalMatch(MyVarInt, 123, 1000);
+  CheckValue("MyVarInt timeout", result, expectedRe);
+}
+
+testcase MyTestSignalMatch()
+{ 
+  setSignal(MyMsg::MySig, 0);  
+  putValue(MyVarFloat, 0);
+  putValue(MyVarInt, 0);
+  
+  CheckValues(0);
+      
+  setSignal(MyMsg::MySig, 1.5);  
+  putValue(MyVarFloat, 1.23);
+  putValue(MyVarInt, 123);
+    
+  CheckValues(1);
+  
+  setSignal(MyMsg::MySig, 0);
+}
+
+testcase MyTestAddSUTInfo()
+{
+  TestReportFileName("SubFolder/MyReport");
+  TestReportAddSUTInfo("Test-Serial", "123456");
+  TestReportAddSUTInfo("Test-Year", "2019");
+  
+  TestReportAddSetupInfo("Tester", "Holger Dahinten");
+  testModuleTitle("My Test title");
+  testModuleDescription("My test module description");
+}
+
+testcase MyTestIntDword()
+{
+  int i = -1;
+  dword dw = 0;
+  
+  if(dw < i)
+    testStepFail("Signed", "dw < i (%d < %d)", dw, i);
+  if(dw <= i)
+    testStepFail("Signed", "dw <= i (%d <= %d)", dw, i);
+
+  if(i > dw)
+    testStepFail("Signed", "i > dw (%d > %d)", i, dw);
+
+  if(i >= dw)
+    testStepFail("Signed", "i >= dw (%d >= %d)", i, dw);
+  
+  dw = 1;
+  dw += i;
+  if(dw != 0)
+    testStepFail("Signed", "dw != 0 (%d)", dw);   
+}
+
+testcase MyTestLongDword()
+{
+  long i = -1;
+  dword dw = 0;
+  
+  if(dw < i)
+    testStepFail("Signed", "dw < i (%d < %d)", dw, i);
+  if(dw <= i)
+    testStepFail("Signed", "dw <= i (%d <= %d)", dw, i);
+
+  if(i > dw)
+    testStepFail("Signed", "i > dw (%d > %d)", i, dw);
+
+  if(i >= dw)
+    testStepFail("Signed", "i >= dw (%d >= %d)", i, dw);
+  
+  dw = 1;
+  dw += i;
+  if(dw != 0)
+    testStepFail("Signed", "dw != 0 (%d)", dw);   
+}
+
+testcase MyTestIntQword()
+{
+  int i = -1;
+  qword dw = 0;
+  
+  if(dw < i)
+    testStepFail("Signed", "dw < i (%d < %d)", dw, i);
+  if(dw <= i)
+    testStepFail("Signed", "dw <= i (%d <= %d)", dw, i);
+
+  if(i > dw)
+    testStepFail("Signed", "i > dw (%d > %d)", i, dw);
+
+  if(i >= dw)
+    testStepFail("Signed", "i >= dw (%d >= %d)", i, dw);
+  
+  dw = 1;
+  dw += i;
+  if(dw != 0)
+    testStepFail("Signed", "dw != 0 (%d)", dw);   
+}
+
+testcase MyTestWaitForEnvVar()
+{
+  long ret; 
+  setTimer(timerIncrementMyVarInt, 500);
+  ret = testWaitForEnvVar(MyVarInt, 1000);
+  CheckValue("testWaitForEnvVar", ret, 1);
+  ret = testWaitForEnvVar(MyVarInt, 1000);
+  CheckValue("testWaitForEnvVar", ret, 0);
+}
+
+testcase MyTestWaitForSysVar()
+{
+  long ret; 
+  setTimer(timerIncrementMySysVar, 500);
+  ret = testWaitForSysVar(sysvar::MyTest::MySysVarInt, 1000);
+  CheckValue("testWaitForSysVar", ret, 1);
+  ret = testWaitForSysVar(sysvar::MyTest::MySysVarInt, 1000);
+  CheckValue("testWaitForEnvVar", ret, 0);
+}
+
+testcase MyTestCaseTitleAndComment()
+{
+  TestCaseTitle("MyTestCase ID", "MyTestCase Title");
+  TestCaseComment("MyTestCase Comment1");
+  TestCaseComment("MyTestCase Comment2", myMsg);
+  TestCaseComment("MyTestCase Comment3", "Some raw string");
+}
+
+void InitJoinEvents(long event[])
+{
+  event[0] = TestJoinMessageEvent(MyMsg);
+  event[1] = testJoinEnvVarEvent(MyVarInt);
+  event[2] = testJoinTextEvent("TestJoin");  
+}
+
+testcase MyTestJoinEvent()
+{
+  long index;
+  long event[3];
+  
+  InitJoinEvents(event);  
+  setTimer(timerSendMsg, 10);  
+  index = TestWaitForAnyJoinedEvent(100);
+  CheckValue("TestJoinMessageEvent", index, event[0]);
+    
+  InitJoinEvents(event);  
+  setTimer(timerIncrementMyVarInt, 10);
+  index = TestWaitForAnyJoinedEvent(100);
+  CheckValue("testJoinEnvVarEvent", index, event[1]);
+
+  InitJoinEvents(event);  
+  setTimer(timerSetJoinedText, 10);
+  index = TestWaitForAnyJoinedEvent(100);
+  CheckValue("testJoinTextEvent", index, event[2]);
+
+  InitJoinEvents(event);  
+  index = TestWaitForAnyJoinedEvent(100);
+  CheckValue("TestWaitForAnyJoinedEvent", index, 0);
+}
+
+long JoinAndSendMessage()
+{
+  long event;
+  long index;
+  
+  event = TestJoinMessageEvent(MyMsg);
+  myMsg.MySig = 123;
+  setTimer(timerSendMsg, 10);  
+  
+  return TestWaitForAnyJoinedEvent(100);
+}
+
+testcase MyTestGetWaitEventMsgData()
+{
+  long index;
+  
+  index = JoinAndSendMessage();
+  myMsg.MySig = 0;
+  TestGetWaitEventMsgData(index, myMsg);
+  CheckValue("TestGetWaitEventMsgData", myMsg.MySig, 123);
+  
+  index = JoinAndSendMessage();
+  myMsg.MySig = 0;
+  TestGetWaitEventMsgData(myMsg);
+  CheckValue("TestGetWaitEventMsgData", myMsg.MySig, 123);  
+}
+
+testcase MyStructInitTest()
+{
+	CheckValueString("name[0]", structInitTest[0].sName, "First name");
+	CheckValueString("name[1]", structInitTest[1].sName, "Last name");
+	
+	CheckValue("bVal[0]", structInitTest[0].bVal, 0x0);
+	CheckValue("bVal[1]", structInitTest[1].bVal, 0x1);
+
+	CheckValue("lVal[0]", structInitTest[0].lVal, 0x123456);
+	CheckValue("lVal[1]", structInitTest[1].lVal, 0xabcdef);
+}
+
+testcase MyStructSizeTest()
+{
+   long size;
+   
+   size = __size_of(struct Point);
+   CheckValue("sizeof(Point)", size, 2);
+   
+   size = __size_of(struct LongPoint);
+   CheckValue("sizeof(LongPoint)", size, 16);
+   
+   size = __size_of(struct Point2);
+   CheckValue("sizeof(Point2)", size, 10);
+
+   size = __size_of(struct Points);
+   CheckValue("sizeof(Points)", size, 14);
+
+   size = __size_of(struct Points2);
+   CheckValue("sizeof(Points2)", size, 13);
+  
+   if(!AUTO_TEST)
+   {
+     // GCC Compiler adds stuff bytes to the end of the struct to be able to build arrays.
+     // In CANoe it is not allowed to create struct arrays so they don't need adding stuff bytes.
+     size = __size_of(struct Test1);
+     CheckValue("sizeof(Test1)", size, 13);
+   
+     size = __size_of(struct Test2);
+     CheckValue("sizeof(Test2)", size, 20);
+   }       
+   /*
+   struct Point {   // note: default _align(8)
+   byte x;          // offset 0, size 1
+   byte y;          // alignment 1, offset 1, size 1, padding before: 0
+   };               // size 2, alignment (of the struct) 1
+
+   struct LongPoint {   // note: default _align(8)
+   byte x;              // offset 0, size 1
+   qword y;             // alignment 8, offset 8, size 8, padding before: 7
+   };                   // size 16, alignment (of the struct) 8
+
+   _align(2) struct Point2 {
+   byte x;    // offset 0, size 1, (alignment 1)
+   qword y;   // alignment 2, offset 2, size 8, padding before: 1
+   };         // size 10, alignment (of the struct) 2
+
+   struct Points {   // note: _align(8) per default
+   struct Point p1;  // offset 0, size 2, (alignment 1)
+   byte x;           // alignment 1, offset 2, size 1, padding before: 0
+   struct Point2 p2; // alignment 2, offset 4, size 10, padding before: 1
+   };                // size 14, alignment (of the struct) 2
+   */
+}
+
+on timer myTimers(dword index)
+{
+   myTimerCalled[index] = 1;
+}
+
+testcase MyTimerTest()
+{
+   dword i;
+   
+   CheckValue("Timer elcount", 10, elcount(myTimers));
+   for (i = 0; i < elcount(myTimers); ++i)
+   {
+      myTimerCalled[i] = 0;
+      myTimers[i].set(100 * i);
+   }
+   
+   TestWaitForTimeout(2000);
+   
+   for (i = 0; i < elcount(myTimerCalled); ++i)
+   {
+      if(myTimerCalled[i] == 0)
+        testStepFail("Timer event not called");
+      else
+        testStepPass("Timer event called");
+   }
+}
+
+testcase VLAN_Test()
+{
+  ethernetPacket p;
+  word tpid, tci;
+  long ret;
+  byte buffer[1600];
+  byte expectedBuffer[4] = {0x60, 0x00, 0x00, 0x00 };
+  int i;
+  
+  ret = p.GetVlan(tpid, tci);  
+  CheckValue("GetVLan invalid1", 1, ret);
+
+  ret = p.SetVlan(1, 2);
+  CheckValue("SetVlan invalid", 0, ret);
+    
+  ret = p.GetVlan(tpid, tci);
+  CheckValue("GetVLan invalid2", 1, ret);
+        
+  ret = p.SetVlan(0x8100, 0x5123);
+  CheckValue("SetVlan valid", 0, ret);
+  
+  ret = p.GetVlan(tpid, tci);
+  CheckValue("GetVlan valid ret", 0, ret);
+  CheckValueHex("GetVlan valid tpdi", 0x8100, tpid);
+  CheckValueHex("GetVlan valid tci", 0x5123, tci);
+  
+  ret = p.CompletePacket();  
+  CheckValue("CompletePacket", 0, ret);
+  
+  ret = p.GetData(0, buffer, elcount(buffer));
+  CheckValue("GetData", 4, ret);
+  
+  PrintBuffer("VLAN", buffer, ret);
+  
+  p.RemoveVlan(); // Allow rerun without error
+  p.CompletePacket();
+}
+
+testcase NDP_Test()
+{
+  ethernetPacket p;
+  long ret;
+  byte buffer[1600];
+  byte expectedBuffer[64] = {0x60, 0x00, 0x00, 0x00, 0x00, 0x18, 0x3a, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x00, 0xc7, 0x80, 0xe0, 0x00, 0x00, 0x00, 0x20, 0x01, 0x0d, 0xb8, 0x85, 0xa3, 0x08, 0xd3, 0x13, 0x19, 0x8a, 0x2e, 0x03, 0x70, 0x73, 0x44 };
+  int i;
+  byte targetData[16];
+  
+  ipGetAddressAsArray("2001:DB8:85A3:8D3:1319:8A2E:370:7344", targetData);
+   
+  ret = p.ndp.neighborAdvertisement.Init();
+  CheckValue("ndp.neighborAdvertisement.Init", 0, ret);
+  
+  p.ndp.neighborAdvertisement.routerFlag = 1;
+  p.ndp.neighborAdvertisement.target.SetData(0, targetData, elcount(targetData));
+  p.ndp.solicitedFlag = 1;
+  p.ndp.overrideFlag = 1;
+
+  ret = p.CompletePacket();  
+  CheckValue("CompletePacket", 0, ret);
+  
+  ret = p.GetData(0, buffer, elcount(buffer));
+  CheckValue("GetData", elcount(expectedBuffer), ret);
+  buffer[ret] = 0;
+   
+  output(p);
+  
+  PrintBuffer("NDP data", buffer, ret);
+  
+  CheckValue("Buffer compare", 0, memcmp(buffer, expectedBuffer, elcount(expectedBuffer)));  
+}
+
+testcase UDP_Test()
+{
+  ethernetPacket p;
+  long ret;
+  byte buffer[1600];
+  byte expectedBuffer[36] = {0x45, 0x0, 0x0, 0x24, 0x0, 0x0, 0x0, 0x0, 0x40, 0x11, 0x7a, 0xca, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xaa, 0xbb, 0xcc, 0xdd, 0x0, 0x10, 0x21, 0x8b, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x0, 0x11};
+  int i;
+  
+  ret = p.udp.Init();
+  CheckValue("udp.Init", 0, ret);
+  
+  p.udp.source = 0xaabb;
+  p.udp.destination = 0xccdd;
+  p.udp.ResizeData(8);
+  p.udp.qword(0) = swapQWord(0xaabbccddeeff0011LL);
+    
+  ret = p.CompletePacket();  
+  CheckValue("CompletePacket", 0, ret);
+  
+  CheckValue("udp.Checksum", 0x218b, p.udp.checksum);
+  CheckValue("ipv4.Checksum", 0x7ACA, p.ipv4.checksum);  
+  
+  ret = p.GetData(0, buffer, elcount(buffer));
+  CheckValue("GetData", elcount(expectedBuffer), ret);  
+  CheckValue("Buffer compare", 0, memcmp(buffer, expectedBuffer, elcount(expectedBuffer)));
+  
+  PrintBuffer("UDP data", buffer, ret);
+  output(p);
+}
+
+testcase IPV6_Test()
+{
+  ethernetPacket p;
+  long ret;
+  byte buffer[1600];
+  byte expectedBuffer[64] = {0x60, 0x00, 0x00, 0x00, 0x00, 0x18, 0x3a, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x00, 0x17, 0xad, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  int i;
+  char macSource[18] = "02:7D:FA:00:10:00";
+  char macDest[18] =   "02:7D:FA:00:14:00";
+
+  p.source = ethGetMacAddressAsNumber(macSource);
+  p.destination = ethGetMacAddressAsNumber(macDest);
+  p.SetVlan(0x8100, 0x3);
+  p.type = 0x86DD;
+  p.ipv6.Init();
+  p.ipv6.version = 6;
+  p.ipv6.class = 0;
+  p.ipv6.flow = 0;
+  p.ipv6.length = 64;
+  p.ipv6.next = 58; // ICMPv6
+  
+  p.icmpv6.Init();
+  
+  p.ipv6.hopLimit = 255;
+  p.icmpv6.type = 135; // Neighbor Solicitation
+  p.icmpv6.code = 0;
+  
+  p.ndp.neighborAdvertisement.Init();
+  
+  p.ndp.routerFlag = 0;
+  p.ndp.solicitedFlag = 1;
+  p.ndp.overrideFlag = 1;
+   
+  ret = p.CompletePacket();  
+  CheckValue("CompletePacket", 0, ret);
+
+  ret = p.GetData(0, buffer, elcount(buffer));
+  CheckValue("GetData", elcount(expectedBuffer), ret);
+  
+  CheckValue("Buffer compare", 0, memcmp(buffer, expectedBuffer, elcount(expectedBuffer)));  
+  
+  PrintBuffer("IPv6 data", buffer, ret);
+     
+  output(p);  
+}
+
+testcase IPV4_Test()
+{
+  ethernetPacket p;
+  long ret;
+  byte buffer[1600];
+  byte expectedBuffer[20] = {0x45, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0xe1, 0x73, 0x00, 0x00, 0x00, 0x00, 0xdd, 0xcc, 0xbb, 0xaa};
+  int i;
+  
+  p.ipv4.Init();
+  p.ipv4.destination = 0xaabbccdd;
+  
+  ret = p.CompletePacket();  
+  CheckValue("CompletePacket", 0, ret);
+
+  ret = p.GetData(0, buffer, elcount(buffer));
+  CheckValue("GetData", elcount(expectedBuffer), ret);
+  
+  CheckValue("Buffer compare", 0, memcmp(buffer, expectedBuffer, elcount(expectedBuffer)));  
+  
+  PrintBuffer("IPv4 data", buffer, ret);
+     
+  output(p);  
+}
+
+testcase EthPacket_Test()
+{
+  long result;
+  long i;
+  long NEWpacket;
+  byte dstIP[16], srcIP[16], data[8];
+  char srcIPc[40], dstIPc[40];
+  byte buffer[1600];
+  char output[1600];
+  char tmp[8];
+  byte expectedBuffer[578] = 
+  { 0x60 ,0x00 ,0x00 ,0x00 ,0x02 ,0x1A ,0x11 ,0x40 ,0xFD ,0x53 ,0x7C ,0xB8 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0xFD ,0x53 ,0x7C ,0xB8 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x04 ,0xD2 ,0x16 ,0x2E ,0x02 ,0x1A ,0xC0 ,0x89 ,0x20 ,0x10 ,0x0C ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x08 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,
+    0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 
+  };
+  setBusContext(GetBusNameContext("Network"));
+  
+  //ETH_Bus_Load
+  dstIP[0] = 0xFD;
+  dstIP[1] = 0x53;
+  dstIP[2] = 0x7C;
+  dstIP[3] = 0xB8;
+  dstIP[4] = 0x00;
+  dstIP[5] = 0x00;
+  dstIP[6] = 0x00;
+  dstIP[7] = 0x00;
+  dstIP[8] = 0x00;
+  dstIP[9] = 0x00;
+  dstIP[10] = 0x00;
+  dstIP[11] = 0x00;
+  dstIP[12] = 0x00;
+  dstIP[13] = 0x00;
+  dstIP[14] = 0x00;
+  dstIP[15] = 0x00;
+  
+  srcIP[0] = 0xFD;
+  srcIP[1] = 0x53;
+  srcIP[2] = 0x7C;
+  srcIP[3] = 0xB8;
+  srcIP[4] = 0x00;
+  srcIP[5] = 0x00;
+  srcIP[6] = 0x00;
+  srcIP[7] = 0x00;
+  srcIP[8] = 0x00;
+  srcIP[9] = 0x00;
+  srcIP[10] = 0x00;
+  srcIP[11] = 0x00;
+  srcIP[12] = 0x00;
+  srcIP[13] = 0x00;
+  srcIP[14] = 0x00;
+  srcIP[15] = 0x00;
+  
+  data[0] = 0x20;
+  data[1] = 0x10;
+  data[2] = 0x0C;
+  data[3] = 0x00;
+  data[4] = 0x00;
+  data[5] = 0x00;
+  data[6] = 0x00;
+  data[7] = 0x08;
+  
+  
+  NEWpacket = EthInitPacket ("ipv6"); 
+  if(NEWpacket == 0)
+      testStepFail("CheckResult", "EthInitPacket is 0");  
+  
+  result = EthInitProtocol(NEWpacket, "udp");
+  CheckValue("EthInitProtocol", result, 0);
+   
+  result = EthAddToken(NEWpacket, "eth" , "vlanTpid");
+  CheckValue("EthAddToken vlanTpid", result, 0);
+  
+  result = EthSetTokenInt(NEWpacket, "eth", "vlanTpid", 0x8100);
+  CheckValue("EthSetTokenInt vlanTpid", result, 0);
+  
+  result = EthSetTokenInt(NEWpacket, "eth", "vlanId", 5);
+  CheckValue("EthSetTokenInt vlanId", result, 0);
+  
+  result = EthResizeToken( NEWpacket, "udp", "data", 530*8 /*bits*/ );
+  CheckValue("EthResizeToken upd data", result, 0);
+  
+  result = EthSetTokenInt(NEWpacket, "ipv6" , "next" , 17);
+  CheckValue("EthSetTokenInt ipv6 next", result, 0);
+
+  result = EthSetTokenInt(NEWpacket, "eth" , "vlanPrio" , 4);
+  CheckValue("EthSetTokenInt eth vlanPrio", result, 0);
+
+  result = EthSetTokenInt64(NEWpacket, "eth" , "destination" , 0x333300000005LL);
+  CheckValue("EthSetTokenInt64 eth destination", result, 0);
+    
+  result = EthSetTokenInt64(NEWpacket, "eth" , "source" , 0x020202020202LL);
+  CheckValue("EthSetTokenInt64 eth source", result, 0);
+  
+  result = EthSetTokenInt(NEWpacket, "ipv6" , "flow" , 0);
+  CheckValue("EthSetTokenInt ipv6 flow", result, 0);
+  
+  result = EthSetTokenData(NEWpacket, "ipv6" , "source" , 16 , srcIP);
+  CheckValue("EthSetTokenData ipv6 source", result, 0);
+
+  result = EthSetTokenData(NEWpacket, "ipv6" , "destination" , 16 , dstIP);
+  CheckValue("EthSetTokenData ipv6 destination", result, 0);
+
+  result = EthSetTokenInt(NEWpacket, "udp" , "length" , 530);
+  CheckValue("EthSetTokenInt udp length", result, 0);
+
+  result = EthSetTokenInt(NEWpacket, "udp" , "source" , 1234);
+  CheckValue("EthSetTokenInt udp source", result, 0);
+
+  result = EthSetTokenInt(NEWpacket, "udp" , "destination" , 5678);
+  CheckValue("EthSetTokenInt udp destination", result, 0);
+
+  result = EthSetTokenData(NEWpacket, "udp" , "data" , elcount(data) , data);
+  CheckValue("EthSetTokenData udp data", result, 0);
+  
+  result = EthCompletePacket(NEWpacket);
+  CheckValue("EthCompletePacket", result, 0);
+   
+  EthOutputPacket( NEWpacket );  
+  
+  result = EthGetTokenData(NEWpacket, "eth", "data", elcount(buffer), buffer);
+  CheckValue("EthGetTokenData eth data", result, 578);
+  
+  for(i=0; i < result; ++i)
+  {
+    snprintf(tmp, elcount(tmp), "%.2X ", buffer[i]);
+    strncat(output, tmp, elcount(output));    
+  }
+  write("Eth udp data=%s", output);
+  if(memcmp(expectedBuffer, buffer, elcount(expectedBuffer)) != 0)
+    testStepFail("CheckResult", "Eth udp data not equal");  
+}
+
+testcase LIN_Functions()
+{
+  //linFrame * frame;
+  dword pid;
+  dword frameId = 0x12;
+
+  //frame.ID = frameId;  
+  //pid = linGetProtectedID(frame.ID);
+  pid = linGetProtectedID(0x12);
+ 
+  //CheckValue("LIN ID", 0x12, frame.ID);
+  CheckValue("LIN PID", 0x92, pid); 
+}
+
+testcase SwapTest()
+{
+  CheckValueHex("swapDWord", 0xddccbbaa, swapDWord(0xaabbccdd));
+  CheckValueHex("swapWord", 0xbbaa, swapWord(0xaabb));
+  //CheckValueHex("swapFloat", 0, swapFloat(0xaabbccdd));
+  CheckValueHex("swapInt", 0xffffffffffffbbaaLL, swapInt(0xaabb));
+  CheckValueHex("swapInt64", 0xffffffffffffffffLL, swapInt64(0xaabbccddeeff11223344LL));  
+  CheckValueHex("swapInt64", 0xddccbbaa00000000LL, swapInt64(0xaabbccdd));  
+  CheckValueHex("swapQWord", 0xffffffffffffffffLL, swapQWord(0xaabbccddeeff11223344LL));
+  CheckValueHex("swapQWord", 0xddccbbaa00000000LL, swapQWord(0xaabbccdd));    
+  CheckValueHex("swapLong", 0xffffffffddccbbaaLL, swapLong(0xaabbccddLL));  
+}
+/*
+testcase DiagSetParameterRawTest()
+{
+  byte data[12] = { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 };
+  byte dataTest[12];
+  long ret;  
+  diagRequest IC213.Diagnostic_Trace_Memory_Write service;
+  
+  ret = diagSetParameterRaw(service, "Diagnostic_Trace_Memory_12_Byte", data, elcount(data));
+  CheckValue("diagSetParameterRaw", 0, ret);  
+  
+  // Check that param was set correct.
+  ret = diagGetParameterRaw(service, "Diagnostic_Trace_Memory_12_Byte", dataTest, elCount(dataTest));
+  CheckValue("diagGetParameterRaw", 0, ret);  
+  
+  ret = memcmp(data, dataTest, elcount(data));
+  CheckValue("memcmp",0 , ret);  
+}*/
+
+testcase InterpretAsTest()
+{
+  CheckValueHex("interpretAsDouble", 0xaabbccddeeff0011LL, interpretAsQword(interpretAsDouble(0xaabbccddeeff0011LL)));
+  CheckValueFloat("interpretAsFloat",0x3f9d70a4, interpretAsDword(interpretAsFloat(0x3f9d70a4)));
+  CheckValueHex("interpretAsQword", 0x405ee3d70a3d70a4LL, interpretAsQword(123.56));
+  CheckValueHex("interpretAsDword", 0x3f9d70a4, interpretAsDword(1.23));
+}
+
+testcase SysVarArrayTest()
+{
+/*
+  int i = 0;
+  @MyTest::MyDoubleArray[0] = 100.23;
+  @MyTest::MyIntArray[0] = 1;
+  
+  for(i=0; i < 10; ++i)
+  {
+    @MyTest::MyDoubleArray[0] += @MyTest::MyDoubleArray[0];
+    @MyTest::MyIntArray[0] += @MyTest::MyIntArray[0];
+  }
+    
+  CheckValue("MyTest::MyIntArray", 1024, @MyTest::MyIntArray[0]);
+  CheckValue("MyTest::MyDoubleArray", 4681789472439502111LL, interpretAsQword(@MyTest::MyDoubleArray[0])); */
+}  
+
+on message MyMsg
+{ 
+    boOnMessageCalled = 1;
+    getValueSignal = getSignal(MySig);
+    getRawValueSignal = getRawSignal(MySig);
+}
+
+testcase MessageEventAndSignalAccess()
+{
+  boOnMessageCalled = 0;
+  
+  myMsg.MySig = 123;
+  output(myMsg);
+  myMsg.MySig = 0;
+  
+  TestWaitForTimeout(10);  
+  
+  CheckValue("on message", 1, boOnMessageCalled);
+  CheckValue("getSignal", 61, getValueSignal);
+  CheckValue("getRawValueSignal", 123, getRawValueSignal);   
+  
+  boOnMessageCalled = 0;
+  TestSetMsgEvent(MyMsg);
+  TestWaitForTimeout(10);  
+  CheckValue("TestSetMsgEvent msg", 1, boOnMessageCalled);
+  
+  boOnMessageCalled = 0;
+  TestSetMsgEvent(0);
+  TestWaitForTimeout(10);  
+  CheckValue("TestSetMsgEvent id", 1, boOnMessageCalled);
+
+  boOnMessageCalled = 0;
+  TestSetMsgEvent("MyMsg");
+  TestWaitForTimeout(10);  
+  CheckValue("TestSetMsgEvent name", 1, boOnMessageCalled);
+}
+
+testcase TestCheck_mbstrncmp()
+{
+  long result;
+  result = mbstrncmp("abc", "abc", 3);
+  CheckValue("mbstrncmp equal", 0, result);
+  result = mbstrncmp("abc", "abd", 3);
+  CheckValue("mbstrncmp smaller", -1, result);
+  result = mbstrncmp("abd", "abc", 3);
+  CheckValue("mbstrncmp larger", 1, result);
+  
+
+  result = mbstrncmp_off("abc", 1, "abc", 1, 3);
+  CheckValue("mbstrncmp_off equal", 0, result);
+  result = mbstrncmp_off("abc", 1, "abd", 1, 3);
+  CheckValue("mbstrncmp_off smaller", -1, result);
+  result = mbstrncmp_off("abd", 1, "abc", 1, 3);
+  CheckValue("mbstrncmp_off larger", 1, result);  
+}
+
+
+testcase TestStringCopy()
+{
+  char dest[4];
+  mbstrncpy(dest, "abc", 2);
+  
+  CheckValue("mbstrncpy dest[0]", 'a', dest[0]);
+  CheckValue("mbstrncpy dest[1]", 'b', dest[1]);
+  CheckValue("mbstrncpy dest[2]", 0,   dest[2]);  
+
+  mbstrncpy(dest, "abcdefg", -1);
+  
+  CheckValue("mbstrncpy dest[2]", 'c',   dest[2]);
+  CheckValue("mbstrncpy dest[3]", 0,   dest[3]);
+  
+  mbstrncpy_off(dest, 1, "abcd", 2);
+  CheckValue("mbstrncpy_off dest[0]", 'a', dest[0]);
+  CheckValue("mbstrncpy_off dest[1]", 'a', dest[1]);
+  CheckValue("mbstrncpy_off dest[2]", 'b', dest[2]);
+  CheckValue("mbstrncpy_off dest[3]", 0, dest[3]);
+  
+  strncpy(dest, "abc", elcount(dest));
+  mbsubstr_cpy(dest, "123456", 1, 2);
+  CheckValueString("mbsubstr_cpy", dest, "23");
+  mbsubstr_cpy(dest, "123456", 2, -1);
+  CheckValueString("mbsubstr_cpy", dest, "345");
+
+  mbsubstr_cpy_off(dest, 1, "abcd", 2, 1);
+  CheckValueString("mbsubstr_cpy", dest, "3c");
+
+}
+
+testcase TestStringConversion()
+{
+  char str[17] = "123456789.123456";
+  int ret;
+  double dVal;
+    
+  ret = strtod(str, dVal);
+  CheckValue("strtod_ret", ret, 16);
+  CheckValueDouble("strtod", dVal, 123456789.123456);
+  
+  ret = strtod(str, 2, dVal);
+  CheckValue("strtod offset", ret, 16);
+  CheckValueDouble("strtod", dVal, 3456789.123456);
+  
+  ret = strtod(str, 20, dVal);
+  CheckValue("strtod invalid offset", ret, -2);
+  
+  ret = strtod("abcdf", dVal);
+  CheckValue("strtod invalid chars", ret, 0);  
+  
+  ret = strtod("1234abcdf", dVal);
+  CheckValue("strtod valid and invalid chars", ret, 4);  
+  CheckValueDouble("strtod", dVal, 1234);  
+  
+  
+  ret = strtod("2E+308", 0, dVal);
+  CheckValue("strtod overflow", ret, -1);  
+
+}
+
+testcase TestDLC()
+{  
+  CheckValue("MyMsg.dlc", 8, MyMsg.dlc);
+}
+
+testcase TestSysVar()
+{
+  long res;
+  char buffer[10];
+  
+  // Change existing table value
+  res = sysSetVariableDescriptionForValue("MyTest", "MySysVarInt", 0, "off_new");
+  CheckValue("sysSetVariableDescriptionForValue", 0, res);
+  sysGetVariableDescriptionForValue("MyTest", "MySysVarInt", 0, buffer, elCount(buffer));
+  CheckValueString("sysGetVariableDescriptionForValue", buffer, "off_new");
+  
+  // Add new table value
+  res = sysSetVariableDescriptionForValue("MyTest", "MySysVarInt", 3, "newEntry");
+  CheckValue("sysSetVariableDescriptionForValue", 0, res);
+  sysGetVariableDescriptionForValue("MyTest", "MySysVarInt", 3, buffer, elCount(buffer));
+  CheckValueString("sysGetVariableDescriptionForValue", buffer, "newEntry");
+
+  // Test DWORD sysvar
+  res = sysSetVariableDWord(sysvar::MyTest::MySysVarDword, 123456);
+  CheckValue("sysSetVariableDWord", 0, res);  
+  CheckValue("sysGetVariableDWord", 123456, sysGetVariableDWord(sysvar::MyTest::MySysVarDword));
+
+  // Test double sysvar
+  res = sysSetVariableFloat(sysvar::MyTest::MySysVarDouble, 1.23456);
+  CheckValue("sysSetVariableFloat", 0, res);  
+  CheckValueFloat("sysGetVariableDWord", 1.23456, sysGetVariableFloat(sysvar::MyTest::MySysVarDouble));
+
+  // Test long long sysvar
+  res = sysSetVariableLongLong(sysvar::MyTest::MySysVarLongLong, 123456789);
+  CheckValue("sysSetVariableFloat", 0, res);  
+  CheckValueFloat("sysGetVariableDWord", 123456789, sysGetVariableLongLong(sysvar::MyTest::MySysVarLongLong));
+}
+
+testcase TestRegEx()
+{
+    char buffer[20] = "Vector Informatik";
+    long res;
+    
+    res = str_replace_regex(buffer, "Inf[a-z]*", "CANoe");
+    CheckValue("str_replace_regex res", 1, res);
+    CheckValueString("str_replace_regex", buffer, "Vector CANoe");
+    
+    res = str_replace_regex(buffer, "CAN[a-z]*", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+    CheckValue("str_replace_regex res neg", 0, res);    
+    CheckValueString("str_replace_regex", buffer, "Vector CANoe");
+}
+
+testcase TestStrStr()
+{
+    char s1[20] = "Vector Informatik";
+    long res;
+    char s2[11] = "Informatik";
+    res = strstr(s1, s2);
+    CheckValue("strstr", 7, res);
+    
+    res = strstr(s1, "Informatik2");
+    CheckValue("strstr", -1, res);    
+}
+
+testcase TestStrnCpy()
+{
+    char a[5] = "abcd";
+    char b[5] = "    ";
+    
+    strncpy(b, a, 2);
+    CheckValueString("strncpy", b, "a");   
+    
+    strncpy(b, a, elcount(a));
+    CheckValueString("strncpy", b, "abcd");
+}
+
+testcase TestTolower()
+{
+  char buffer[20];
+  char ch;
+  
+  toLower(buffer, "VectoR", elcount(buffer));
+  CheckValueString("toLower", buffer, "vector");
+  
+  ch = toLower('B');
+  CheckValue("toLower", ch, 'b');
+  
+  ch = toLower('c');
+  CheckValue("toLower", ch, 'c');
+  
+  ch = toLower(':');
+  CheckValue("toLower", ch, ':');
+} 
+
+testcase TestStrTol()
+{
+    long val;
+    long res;
+    
+    res = strtol("", val);
+    CheckValue("Empty string", res, -2);
+ 
+    res = strtol("123", 5, val);
+    CheckValue("Wrong startIndex", res, -2);
+    
+    res = strtol("9223372036854775808", val);
+    CheckValue("Overflow", res, -1);
+        
+    res = strtol("\t  1234", val);
+    CheckValue("Tab value", val, 1234);
+    CheckValue("Tab res", res, 7);
+    
+    res = strtol("1234", 2, val);
+    CheckValue("Offset value", val, 34);
+    CheckValue("Offset res", res, 4);
+    
+    res = strtol("0xabcd", val);
+    CheckValue("Hex value", val, 0xabcd);
+    CheckValue("Hex res", res, 6);
+    
+    res = strtol("014", val);
+    CheckValue("Octal value", val, 12);
+    CheckValue("Octal res", res, 3);    
+}
+
+
+on envvar (MyVarInt | MyVarFloat)
+{    
+    //strncpy(ChangedVarName, this.name, elcount(ChangedVarName));    
+    MyVarChangeCount++;
+}
+
+testcase OnEnvVarTest()
+{
+    putValue(MyVarInt, 0);
+    testWaitForEnvVar(MyVarInt, 1000);
+  
+    MyVarChangeCount = 0;
+    putValue(MyVarInt, 1);
+  
+    testWaitForEnvVar(MyVarInt, 1000);
+    CheckValue("MyVarChangeCount", MyVarChangeCount, 1);
+    //CheckValueString("ChangedVarName", ChangedVarName, "MyVarInt");
+       
+    putValue(MyVarInt, 0);
+    putValue(MyVarFloat, 0);
+  
+    testWaitForEnvVar(MyVarInt, 1000);
+    testWaitForEnvVar(MyVarFloat, 1000);
+  
+    MyVarChangeCount = 0;
+    putValue(MyVarInt, 1);
+    putValue(MyVarFloat, 1);
+    testWaitForEnvVar(MyVarInt, 1000);
+    testWaitForEnvVar(MyVarFloat, 1000);
+    CheckValue("MyVarChangeCount", MyVarChangeCount, 2);
+    //CheckValueString("ChangedVarName", ChangedVarName, "MyVarFloat");  
+}
+
+void MainTest()
+{     
+    TestSysVar();  
+ 
+    TestDLC();
+  
+    TestGroupBegin("String tests", "Test for string operations"); 
+      TestStringCopy();    
+      TestStringConversion();
+	  TestRegEx();
+	  TestStrStr();	  
+      TestRegEx();
+      TestTolower();
+      TestStrTol();
+      TestCheck_mbstrncmp();
+    TestGroupEnd();
+  
+    MessageEventAndSignalAccess();
+ 
+    MyTimerTest();
+
+    MyStructSizeTest();
+	
+	MyStructInitTest();
+
+    if(!AUTO_TEST)
+    {
+      MyTestFailed();  
+      //MyDiagTest();
+      MyTestConfirm();
+    }
+
+    MyTestGetWaitEventMsgData();
+    MyTestJoinEvent();   
+    MyTestCaseTitleAndComment();
+
+    TestGroupBegin("Wait tests", "Test for waiting stuff"); 
+        MyTestWaitForEnvVar();
+        MyTestWaitForSysVar();
+        MyTestWait();
+    TestGroupEnd();
+
+    TestGroupBegin("Type compare tests", "Test compare unsigned signed combinations"); 
+        MyTestIntQword();
+        MyTestLongDword();
+        MyTestIntDword();
+    TestGroupEnd();
+    
+    MyTestSignalMatch();  
+
+    MyTestMissingPass();    
+        
+    MyTestAddSUTInfo();
+    MyTestTestSteps();
+    
+    LIN_Functions();
+    
+    SwapTest();
+    
+    //DiagSetParameterRawTest();
+    
+    InterpretAsTest();
+    
+    SysVarArrayTest();
+    
+    TestGroupBegin("Ethernet tests", "Test for different ethernet protocols");         
+        VLAN_Test();
+        NDP_Test();
+        UDP_Test();
+        IPV6_Test();
+        IPV4_Test();
+        EthPacket_Test();
+    TestGroupEnd();
+    
+    OnEnvVarTest();
+}

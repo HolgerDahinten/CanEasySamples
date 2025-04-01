@@ -1,0 +1,39 @@
+/*@!Encoding:1252*/
+includes
+{
+}
+
+variables
+{
+	struct Test
+	{
+		int a;
+	};
+	int array[5];
+}
+
+on key DeleteKey
+{
+  write("Del pressed");
+}
+
+void TestFunc(struct Test test[])
+{
+	test[0].a = 5;
+}
+
+void TestFuncInt(int test[])
+{
+	test[0] = 5;
+}
+
+on start
+{
+ 	struct Test test[5];	
+  
+	write("MyNode.can started");
+
+	TestFunc(test);	
+	array[0] = 5;
+}
+  
